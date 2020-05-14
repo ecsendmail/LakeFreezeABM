@@ -26,3 +26,7 @@ I only looked at the bottom layer because upward movements happen anyway when on
 Sorry, Github does not support pasting an image or I could share the interesting observation that in this ABM at least, the temperature changes do not go uniformly from top to bottom but in BANDS. It would be interesting to see if there is a mathematical relationship between the bands (sure one can be construed!)....😂
 
 I KNOW IT WORKS ON CHROME AND I AM RUNNING IT ON EDGE
+
+The temperature scale is on the left (RED at 10C, going to purple at 0C), with the 4C densest temperature as pale blue. What you would see as the simulation begins is a transition in bands from red to orange to green at the bottom, then the pale blue 4C zone, and eventually above that the layers from 4 to 0C going upwards to the top.
+
+It would be interesting to set the exothermic layer to produce always a temperature of 2C....I will leave that to the reader to change just one constant in the Javascript program.
