@@ -586,6 +586,7 @@ function mainLoop(from,to){
 var count = 599;
 var step = 6;
 var begin = 0;
+const BOTTEMP = 2;
 
 
 //setID = setInterval(icicle,speed/FPS);
@@ -597,7 +598,7 @@ function icicle(){
     if (begin>count) {
       begin = 0;
       sheet[0].temp = 0;
-      sheet[600].temp = 6;
+      sheet[600].temp = BOTTEMP;
       sheet[600].rho = 0.9999432;
     }
 //    alert("cycle now");
