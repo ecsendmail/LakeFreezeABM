@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+
+#dispTOP {
+  left:500px;
+  top:5px;
+  position: absolute;
+}
+
+#displayTemp {
+  left:500px;
+  top: 30px;
+  position: absolute;
+}
+
+#displayDensity {
+  left: 500px;
+  top:  55px;
+  position: absolute;
+}
+
+#dispBOT {
+  left:500px;
+  top:105px;
+  position: absolute;
+}
+
+#botTemp {
+  left:500px;
+  top: 130px;
+  position: absolute;
+}
+
+#botDensity {
+  left: 500px;
+  top:  155px;
+  position: absolute;
+}
+
+#dispLayer {
+  left:500px;
+  top:200px;
+  position: absolute;
+}
+
+
+th,  td {
+  border: 1px solid red;
+  padding: 3px;
+  text-align: center;
+}
+th {
+    cursor: pointer;
+}
+
+#paramTab {
+  left: 500px;
+  top:300px;
+  position: absolute;
+}
+
+
+#lakeTxt {
+  left:500px;
+  top:400px;
+  position: absolute;
+}
+
+</style>
+
+<body>
+
+<!--
+   <canvas id="myCanvas" width="2000" height="1000"
+           style="border:1px solid #d3d3d3; left=50; top=50">
+    </canvas>
+-->
+
+
+    <div id="fields">
+        <canvas id="canp1" style="position:absolute; border: 1px solid hsl(120,100%,50%)"></canvas>
+    </div>
+
+    <button onclick="icicle()" type="button" style="cursor:pointer">Play</button>
+    <p id="dispTOP">CURRENT LAYER</p>
+    <p id="displayTemp">Temperature</p>
+    <p id="displayDensity">Density</p>
+    <p id="dispBOT">NEXT LAYER</p>
+    <p id="botTemp">Bottom T</p>
+    <p id="botDensity">Bottom D</p>
+    <p id="dispLayer">LAYER</P>
+
+<div>
+    <table id="paramTab">
+      <tr>
+        <th onclick="heatF()">Heat Factor</th>
+        <th onclick="randomF()">Perturbation</th>
+        <th onclick="speedF()">Speed Factor</th>
+      </tr>
+      <tr>
+        <td id="dheatF">0.04</td>
+        <td id="drandomF">0.0000004</td>
+        <td id="dspeedF">30</td>
+      </tr>
+    </table>
+</div>
+
+<div id="lakeTxt" style="background-color:black;color:white;padding:20px;">
+  <h4>Lake with Exothermic Bottom during Freezing</h4>
+  <p> This is an Agent-Based Simulation of a body of water at a uniform 10C, in the process of freezing, starting with ice at the top, and
+   an exothermic source (decaying vegetation) of 6C at the bottom. </p>
+  <p> Temperatures range from 10C at the top to 0C below, at 2 degree intervals. The thermal exchange from one layer to the other is ad hoc, with small
+    stochastic perturbations. The resulting temperatures are used to find the densities to 8 decimal place, to determine the movement by exchange with a lower layer.
+    There are 600 vertical layers. </p>
+</div>
+
+
+
+<script>
+
+
+
+// *********************************** CREATE CANVASES FOR EACH PANE *******************************
+
+
+var canp1 = document.getElementById("canp1");
+  canp1.width = 400;
+  canp1.height = 600;
+  canp1.style.top = "25px";
+  canp1.style.left = "75px";
+
+var ctx1 = canp1.getContext("2d");
+
+
+function drawc(x,y,rad,color,ctx){
+  ctx.beginPath();
+  ctx.arc(x,y,rad,0,2*Math.PI);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.stroke();
+  ctx.strokeStyle = "black";
+}
+
+function drawSheet(x,y,w,h,clr,ctx){
+  ctx.fillStyle = clr;
+  ctx.fillRect(x,y,w,h);
+}
+
+
+// ****************************************************
+
+
+
+var ocean = 600;      // start with 50x200
+var generation = 0;
+
+
+
+function hslToHex(h, s, l) {
+  h /= 360;
+  s /= 100;
+  l /= 100;
+  let r, g, b;
+  if (s === 0) {
+    r = g = b = l; // achromatic
+  } else {
+    const hue2rgb = (p, q, t) => {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1 / 6) return p + (q - p) * 6 * t;
+      if (t < 1 / 2) return q;
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+      return p;
+    };
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    r = hue2rgb(p, q, h + 1 / 3);
+    g = hue2rgb(p, q, h);
+    b = hue2rgb(p, q, h - 1 / 3);
+  }
+  const toHex = x => {
+    const hex = Math.round(x * 255).toString(16);
+    return hex.length === 1 ? '0' + hex : hex;
+  };
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+/*
+ctx1.fillStyle = hexColor;
+ctx1.fillRect(0,0,canp1.width, canp1.height);
+drawc(10,10,8,"green",ctx1);
+
+*/
+
+
+var hue, hClr;
+for (i=0; i<5; i++){
+  for (j=0;j<60;j++){
+    hue = (i*60)+j;
+    hClr = hslToHex(hue, 100,50);
+    ctx1.fillStyle = hClr;
+    ctx1.fillRect(0,(i*60+j)*2,400,2);
+  }
+  ctx1.fillStyle = hslToHex(0,0,60);
+  ctx1.fillRect(0,i*60*2,20,2);
+};
+
+
+
+
+// we will check the 4 neighbours for temperature
+// we will check up and down for density differences as well
+// we will have a 5% variance in the x and y directions at each move
+// this will be stochastic random from 0 to 5....
+
+//we need to find a nice way to color code the variations in temperature
+// we may have to show the microscopic view of the 4C boundary layer
+
+//we  may eventually want a movie captured through animating the frames
+
+
+function CreateDensityTable(){
+  this.temp;
+  this.density;
+}
+
+var rho = [];
+
+for (i=1;i<67; i++){
+  rho[i] = new CreateDensityTable;
+}
+
+rho[1].temp = 19;
+rho[1].density = 0.9984082;
+
+rho[2].temp = 18;
+rho[2].density = 0.0085986;
+
+rho[3].temp = 17;
+rho[3].density = 0.998779;
+
+rho[4].temp = 16;
+rho[4].density = 0.998946;
+
+rho[5].temp = 15;
+rho[5].density = 0.9991026;
+
+rho[6].temp = 14;
+rho[6].density = 0.9992474;
+
+rho[7].temp = 13;
+rho[7].density = 0.9993801;
+
+rho[8].temp = 12;
+rho[8].density = 0.9995004;
+
+rho[9].temp = 11;
+rho[9].density = 0.9996018;
+
+rho[10].temp = 10;
+rho[10].density = 0.9997026;
+
+rho[11].temp = 9;
+rho[11].density = 0.9997838;
+
+rho[12].temp = 8;
+rho[12].density = 0.9998512;
+
+rho[13].temp = 7;
+rho[13].density = 0.9999045;
+
+rho[14].temp = 6.5;
+rho[14].density = 0.99992571;
+
+rho[15].temp = 6.25;
+rho[15].density = 0.999934924;
+
+rho[16].temp = 6;
+rho[16].density = 0.9999432;
+
+rho[17].temp = 5.75;
+rho[17].density = 0.999950522;
+
+rho[18].temp = 5.5;
+rho[18].density = 0.999956899;
+
+rho[19].temp = 5.25;
+rho[19].density = 0.999962326;
+
+rho[20].temp = 5;
+rho[20].density = 0.9999668;
+
+rho[21].temp = 4.9;
+rho[21].density = 0.999968323;
+
+rho[22].temp = 4.8;
+rho[22].density = 0.999969692;
+
+rho[23].temp = 4.7;
+rho[23].density = 0.999970906;
+
+rho[24].temp = 4.6;
+rho[24].density = 0.999971963;
+
+rho[25].temp = 4.5;
+rho[25].density = 0.999972864;
+
+rho[26].temp = 4.4;
+rho[26].density = 0.999973608;
+
+rho[27].temp = 4.3;
+rho[27].density = 0.999974194;
+
+rho[28].temp = 4.2;
+rho[28].density = 0.999974622;
+
+rho[29].temp = 4.1;
+rho[29].density = 0.99997489;
+
+rho[30].temp = 4.05;
+rho[30].density = 0.999974965;
+
+rho[31].temp = 4.04;
+rho[31].density = 0.999974975;
+
+rho[32].temp = 4.03;
+rho[32].density = 0.999974984;
+
+rho[33].temp = 4.02;
+rho[33].density = 0.99997499;
+
+rho[34].temp = 4.01;
+rho[34].density = 0.999974996;
+
+rho[35].temp = 4.005;
+rho[35].density = 0.99997499;
+
+rho[36].temp = 4.004;
+rho[36].density = 0.999974998;
+
+rho[37].temp = 4.003;
+rho[37].density = 0.999974999;
+
+rho[38].temp = 4.002;
+rho[38].density = 0.999974999;
+
+rho[39].temp = 4.0;
+rho[39].density = 0.999975;
+
+rho[40].temp = 3.999;
+rho[40].density = 0.999975;
+
+rho[41].temp = 3.9;
+rho[41].density = 0.999974947;
+
+rho[42].temp = 3.8;
+rho[42].density = 0.999974734;
+
+rho[43].temp = 3.7;
+rho[43].density = 0.99997436;
+
+rho[44].temp = 3.6;
+rho[44].density = 0.999973825;
+
+rho[45].temp = 3.5;
+rho[45].density = 0.999973128;
+
+rho[46].temp = 3.4;
+rho[46].density = 0.999972269;
+
+rho[47].temp = 3.3;
+rho[47].density = 0.999971247;
+
+rho[48].temp = 3.2;
+rho[48].density = 0.999970062;
+
+rho[49].temp = 3.1;
+rho[49].density = 0.999968713;
+
+rho[50].temp = 3.0;
+rho[50].density = 0.9999672;
+
+rho[51].temp = 2.75;
+rho[51].density = 0.999962697;
+
+rho[52].temp = 2.5;
+rho[52].density = 0.999957152;
+
+rho[53].temp = 2.25;
+rho[53].density = 0.999950556;
+
+rho[54].temp = 2;
+rho[54].density = 0.9999429;
+
+rho[55].temp = 1.75;
+rho[55].density =0.999934165;
+
+rho[56].temp = 1.5;
+rho[56].density = 0.999924359;
+
+rho[57].temp = 1.25;
+rho[57].density = 0.999913473;
+
+rho[58].temp = 1;
+rho[58].density = 0.9999015;
+
+rho[59].temp = 0.75;
+rho[59].density = 0.99988845;
+
+rho[60].temp = 0.5;
+rho[60].density = 0.999874277;
+
+rho[61].temp = 0.25;
+rho[61].density = 0.999858964;
+
+rho[62].temp = 0.1;
+rho[62].density = 0.999849224;
+
+rho[63].temp = 0.05;
+rho[63].density = 0.999845885;
+
+rho[64].temp = 0.025;
+rho[64].density = 0.99984267;
+
+rho[65].temp = 0.001;
+rho[65].density = 0.99842568;
+
+rho[66].temp = 0;
+rho[66].density = 0.9998425;
+
+
+function CreateSheet(){
+  this.ID;
+  this.x;
+  this.y;
+  this.temp;
+  this.rho;
+  this.netTemp = [];
+  this.netDirection = [];
+  this.newRho = [];
+  this.cycle = 0;
+}
+
+var sheet = [];
+
+
+function assignXY(){
+  var i;
+  for (i=0; i<601; i++){
+        sheet[i] = new CreateSheet;
+        sheet[i].ID = i;
+        sheet[i].x = 0;
+        sheet[i].y = i;
+        sheet[i].temp = 10;
+        sheet[i].rho = 0.9997026;
+        sheet[i].netTemp[0] = 0;
+        sheet[i].netDirection[0] = 0;
+        sheet[i].newRho[0] = 0;
+        sheet[i].cycle = 0;
+    }
+}
+
+var speed = 100;
+const FPS = 30;
+var setID = setInterval(icicle,speed/FPS);
+
+var delHeat = 0.02;
+var ranHeat = 0.00005;
+
+function heatLoss(me, you, cycle){
+  var deltaT, myT, yourT, ranvar;
+//  alert("cycle = "+cycle);
+//  alert("T(me),T(u) ="+sheet[me].temp+","+sheet[you].temp);
+//  alert("me, you "+me+","+you);
+  myT = sheet[me].temp;
+  yourT = sheet[you].temp;
+  if (myT == yourT) {
+//    alert("no more diff");
+    return;
+  }
+  if (myT > yourT){
+//      alert("sheet[me].netTemp> ="+sheet[me].netTemp[cycle]);
+      deltaT = ((myT - yourT)*delHeat);
+      //alert("deltaT = "+deltaT);
+      ranvar = (Math.random()*myT*delHeat);
+      //alert("ranvar = "+ranvar);
+      sheet[me].netTemp[cycle] -= (deltaT + ranvar);
+      ranvar = (Math.random()*yourT*ranHeat);
+      sheet[you].netTemp[cycle] = sheet[you].netTemp[cycle] + (deltaT + ranvar);
+      //alert("netTs1 = "+sheet[me].netTemp[cycle]+","+sheet[you].netTemp[cycle]);
+  } else {
+//      alert("sheet[me].netTemp< ="+sheet[me].netTemp[cycle]);
+      deltaT = (yourT - myT)*delHeat;
+      sheet[me].netTemp[cycle] += (deltaT + (Math.random()*myT*ranHeat));
+      sheet[you].netTemp[cycle] = sheet[you].netTemp[cycle] - (deltaT+(Math.random()*yourT*ranHeat));
+//      alert("netTs2 = "+sheet[me].netTemp[cycle]+","+sheet[you].netTemp[cycle]);
+  }
+}
+
+
+
+function lookUpDensity(me){
+  // there are exactly 66 entries
+  var bottom, top, i, j;
+  for (i=1; i<67;i++){
+    if (sheet[me].temp >= rho[i].temp) {
+      return(rho[i].density);
+    }
+  }
+  return(-1);
+}
+
+// //alert(lookUpDensity(5));
+
+// ******************** main loop ****************
+
+var cycle = 0;
+function mainLoop(from,to){
+  // apply freezing to layer 0
+
+  // the addressing works as follows:
+  //     each sheet (entity) has a unique sheet[i].ID which is what is was created WITH
+  //     this was its original place in the layer
+  //     its current place in the layer is sheet[i].y since y is the y co-ordinate
+  //     the y-coordinate is from 0 to 600 (0 being on the top)
+  //     a change of position affects the y-position but not the sheet.ID
+  //     so getting to the current temperature and density of a sheet requires us to
+  //     INDIRECT through sheet[i].y to get the sheet[i].ID, and that is the index that we
+  //     use as "me" to find current temperature etc.....and to check above and below, we don't
+  //     use me, but y-1 and y+1....indirecting through their IDs to find the data....
+//alert("in main");
+
+  var i, me, top, bot;
+  sheet[0].temp = 0;
+  sheet[0].rho = 0.9998425;
+
+
+
+//  alert(from+","+to);
+
+  for (i=from; i<to; i++){
+    cycle++;
+    me = sheet[i].ID;
+//    top = sheet[i-1].ID;
+    bot = sheet[i+1].ID;
+    sheet[me].cycle = cycle;
+    sheet[bot].cycle = cycle;
+    sheet[me].netTemp[cycle] = 0;
+//    sheet[top].netTemp[cycle] = 0;
+    sheet[bot].netTemp[cycle] = 0;
+//    heatLoss(me,top,cycle);       // the sheet above
+    heatLoss(me,bot,cycle);       // the sheet below
+    sheet[me].temp += sheet[me].netTemp[cycle];
+    if (sheet[me].temp > 10) sheet[me].temp = 9.99999999;
+//    alert("me new temp "+me+",   "+ sheet[me].temp);
+//    alert("my temp going into lookup "+sheet[me].temp);
+    sheet[me].newRho[cycle] = lookUpDensity(me);
+//    alert("new density "+sheet[me].newRho[cycle]);
+    sheet[me].rho = sheet[me].newRho[cycle];
+    sheet[bot].temp = sheet[bot].temp + sheet[bot].netTemp[cycle];
+//    alert("bot temp going into lookup "+sheet[bot].temp);
+    sheet[bot].newRho[cycle] = lookUpDensity(bot);
+    sheet[bot].rho = sheet[bot].newRho[cycle];
+//    alert("bot new density "+sheet[bot].rho);
+
+   //alert("me,newTemp,newDensity "+me);
+   densityMove(i);
+   drawSheet(i);
+   drawSheet(i+1);
+   document.getElementById("displayTemp").innerHTML = sheet[i].temp;
+   document.getElementById("displayDensity").innerHTML = sheet[i].rho.toFixed(8);
+   document.getElementById("botTemp").innerHTML = sheet[i+1].temp;
+   document.getElementById("botDensity").innerHTML = sheet[i+1].rho.toFixed(8);
+   document.getElementById("dispLayer").innerHTML = i;
+//   alert("go again");
+  }
+}
+
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+var count = 599;
+var step = 6;
+var begin = 0;
+
+
+//setID = setInterval(icicle,speed/FPS);
+
+function icicle(){
+//  alert("done once");
+    mainLoop(begin,begin+step);
+    begin = begin + step;
+    if (begin>count) {
+      begin = 0;
+      sheet[0].temp = 0;
+      sheet[600].temp = 6;
+      sheet[600].rho = 0.9999432;
+    }
+//    alert("cycle now");
+
+}
+
+
+function drawSheet(i){
+  var sheetHue;
+  sheetHue = lookupColor(i);
+//  alert(sheetHue);
+  ctx1.fillStyle = hslToHex(sheetHue, 100, 50);
+  ctx1.fillRect(25,sheet[i].y,400,3)
+  //alert("go again");
+}
+
+
+function densityMove(layer){
+  var me, top, bot, swap;;
+  var myD, upD, downD;
+  var netD;
+  if (layer == 0 || layer == 600) return;        // these are anchors
+  me = sheet[layer].ID;
+
+//  top = sheet[layer-1].ID;
+  bot = sheet[layer+1].ID;
+
+  myD = lookUpDensity(me);
+//  upD = lookUpDensity(top);
+  downD = lookUpDensity(bot);
+  //alert("test swap");
+
+  //alert("myD, upD, downD = "+ myD+"   ,   "+upD+"    ,    "+downD);
+
+
+  if ( myD > downD){
+    sheet[bot].y = layer;
+    sheet[me].y = layer+1;
+    //alert("I moved down to layer "+ (layer+1));
+  };
+  if ( myD <= downD){
+    //alert("I moved up from - to "+layer+" to "+(layer-1));
+  };
+}
+
+
+
+
+//alert(floor(4.2));
+
+function lookupColor(i) {
+  var bClrTemp;
+  var clrBase;
+  var clrTop;
+  var clrBot;
+  var numBase;
+  var clrHue;
+  var thisSheet;
+
+  thisSheet = sheet[i].ID;
+  clrTemp = sheet[thisSheet].temp;
+  clrFloor = Math.floor(clrTemp);
+  while (true){
+      if (clrFloor > 8){
+        clrTop = 0;
+        clrBot = 59;
+        numBase = 8;
+        break;
+      };
+      if (clrFloor > 6){
+        clrTop = 60;
+        clrBot = 119;
+        numBase = 6;
+        break;
+      };
+      if (clrFloor >4){
+        clrTop = 120;
+        clrBot = 179;
+        numBase = 4;
+        break;
+      };
+      if (clrFloor > 2){
+        clrTop = 180;
+        clrBot = 239;
+        numBase = 2;
+        break;
+      };
+      if (clrFloor >= 0){
+        clrTop = 240;
+        clrBot = 299;
+        numBase = 0;
+        break;
+      }
+  }
+  var clrDelta = 60 - ((clrTemp - numBase)/2 * 60);
+  clrHue = clrTop + clrDelta;
+//  alert(clrHue);
+  return(clrHue);
+
+}
+
+function heatF(){
+  var pf = prompt("Ad hoc heat trasnfer factor - set at 0.04. The higher, the more temperature exchange",0.04);
+  delHeat = pf;
+  document.getElementById("dheatF").innerHTML = pf;
+}
+
+function randomF(){
+  var rf = prompt("Stochastic minor perturbation so no identicality in entities - set very small",0.00005);
+  ranHeat = rf;
+  document.getElementById("drandomF").innerHTML = rf;
+}
+
+function speedF() {
+  var sf = prompt("Speed of animation - the smaller the faster the refresh but may be jerkier",30);
+  speed = sf;
+  document.getElementById("dspeedF").innerHTML = sf;
+  clearInterval(setID);
+  setID = setInterval(icicle,speed/FPS);
+
+
+}
+
+
+
+
+
+//swap a sheeet means that the index of the sheet changes; do I have to transfer the properties to the next indes
+// or do I just swap indexes?
+assignXY();
+//mainLoop();
+
+
+
+</script>
+
+
+
+</body>
+</html>
